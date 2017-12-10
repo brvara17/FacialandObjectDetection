@@ -35,9 +35,9 @@ distance = 0
 samePerson = 0
 firstRunForFace = 0
 
-#os.rmdir("snapshot")
-#TEST
+#Make directory for tempSnapshot for comparison
 os.mkdir("snapshot")
+
 #first function called in program to check if sd card is empty
 def SDCardEmpty():
         if not "1" in os.listdir():
@@ -70,6 +70,7 @@ def FindFaceMatch(imgSnapSimilarity):
             #Calculate the LBP of the saved image
             savedImg = img.find_lbp((0, 0, img.width(), img.height()))
             #calculate distance of snapshot image vs the images saved
+            #90 is perfect threshold for detection
             distance += image.match_descriptor(imgSnapSimilarity, savedImg, 90)
             print("File %d Distance %d:" %(j,i))
             savedImg = None
@@ -93,7 +94,7 @@ def captureNewFace():
     for x in range (0,9):
         sensor.snapshot().save("%d/snapshot-%d.pgm" % (NumOfFaces, x))
 
-
+#Main function for detection of faces and objects
 while (True):
     clock.tick()
     img = sensor.snapshot()
@@ -104,6 +105,7 @@ while (True):
     #Find black rectangles in snapshot
     rectobj = img.find_rects(threshold = 10000)
 
+    #if any Faces are found run through the cycle
     if(any(objects)):
         if(firstRunForFace == 0):
             SDCardEmpty()
@@ -117,6 +119,8 @@ while (True):
         img = None
         distance = FindFaceMatch(imgSnapSimilarity)
         imgSnapSimilarity = None
+
+        #Tested and 350000 is the good metric value to compare against for a set of images
         if(distance < 350000):
             blue_led.off()
             red_led.off()
