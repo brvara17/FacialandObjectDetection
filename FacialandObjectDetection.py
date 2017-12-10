@@ -110,13 +110,17 @@ while (True):
         if(firstRunForFace == 0):
             SDCardEmpty()
             firstRunForFace = 1
-
+        #Run garbage collector before running through all face rec functions
         gc.collect()
         print("free mem")
         print(gc.mem_free())
         print("snapshot directory")
+
+        #Take snap and find similarity
         imgSnapSimilarity = StoreSnapshot(img)
         img = None
+
+        #Get distance of face from images stored in the sd card
         distance = FindFaceMatch(imgSnapSimilarity)
         imgSnapSimilarity = None
 
@@ -143,8 +147,8 @@ while (True):
             blue_led.on()
             print("Detecting Rectangle Object")
     else:
-        green_led.off()
-        red_led.off()
-        blue_led.off()
+        green_led.on()
+        red_led.on()
+        blue_led.on()
 
     print(clock.fps())
