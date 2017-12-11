@@ -1,4 +1,4 @@
-import sensor, time, image, pyb, gc
+import sensor, time, image, pyb, gc, cpufreq
 import os
 
 
@@ -11,6 +11,9 @@ sensor.set_gainceiling(16)
 # HQVGA and GRAYSCALE are the best for face tracking.
 sensor.set_framesize(sensor.QQVGA)
 sensor.set_pixformat(sensor.GRAYSCALE)
+
+#Increase clock speed by 46 Mhz
+cpufreq.set_frequency(cpufreq.CPUFREQ_216MHZ)
 
 #gc.enable()
 # Load Haar Cascade
@@ -34,6 +37,11 @@ NumOfFaces = 1
 distance = 0
 samePerson = 0
 firstRunForFace = 0
+faceRecognized = False
+searchIndex = 1
+tempSearchIndex = 1
+searchIndexArray = []
+countRecognized = 0
 
 #Make directory for tempSnapshot for comparison
 os.mkdir("snapshot")
@@ -42,8 +50,8 @@ os.mkdir("snapshot")
 def SDCardEmpty():
         if not "1" in os.listdir():
             #NumOfFaces += 1
-            print("dir #")
-            print("1")
+            #print("dir #")
+            #print("1")
             os.mkdir("%d" % (1))
             #stores 9 images on the sd card in folder NumOfFaces
             for x in range (0,9):
@@ -53,7 +61,7 @@ def SDCardEmpty():
 def StoreSnapshot(img):
         img.save("snapshot/snap.pgm")
         img = image.Image("snapshot/snap.pgm",copy_to_fb = True).mask_ellipse()
-        print("Retreived Image from Snapshot")
+        #print("Retreived Image from Snapshot")
         #Calculate the LBP of the snapshot image
         imgSnapSimilarity = img.find_lbp((0, 0, img.width(), img.height()))
         return imgSnapSimilarity
@@ -62,7 +70,9 @@ def StoreSnapshot(img):
 def FindFaceMatch(imgSnapSimilarity):
     global distance
     global NumOfFaces
-    for j in range(1,NumOfFaces+1):
+    global searchIndex
+    global tempSearchIndex
+    for j in range(searchIndex,NumOfFaces+1):
         distance = 0
         for i in range(0,9):
             #Grab file from SD Card to compare to
@@ -72,15 +82,18 @@ def FindFaceMatch(imgSnapSimilarity):
             #calculate distance of snapshot image vs the images saved
             #90 is perfect threshold for detection
             distance += image.match_descriptor(imgSnapSimilarity, savedImg, 90)
-            print("File %d Distance %d:" %(j,i))
+
             savedImg = None
             img = None
         gc.collect()
         if(distance < 350000):
-            print(distance)
+            #print(distance)
+            tempSearchIndex = j
+            print("File %d Distance: " %(j))
             return distance
-        print(distance)
-    print("Not Recognized")
+        #print(distance)
+    #print("File %d Distance: " %(j))
+    #print("Not Recognized")
     return distance
 
 #capture Face that I dont recognize and store it
@@ -94,8 +107,34 @@ def captureNewFace():
     for x in range (0,9):
         sensor.snapshot().save("%d/snapshot-%d.pgm" % (NumOfFaces, x))
 
+#Algorithm for Searching through SD card
+def SearchSDAlgorithm():
+    global searchIndexArray
+    global searchIndex
+    global tempSearchIndex
+    global faceRecognized
+    global countRecognized
+    #if face is recognized add an element to the
+    if(faceRecognized):
+        searchIndexArray.append(tempSearchIndex)
+        countRecognized += 1
+    else:
+        searchIndexArray[:] = []
+        searchIndex = 1
+        countRecognized = 0
+    if(countRecognized == 2):
+        searchIndex = min(searchIndexArray)
+        countRecognized = 0
+        searchIndexArray[:] = []
+    print("Search Index: %d" %searchIndex)
+
+
+micros = pyb.Timer(2, prescaler=83, period=0x3fffffff)
+
+
 #Main function for detection of faces and objects
 while (True):
+    micros.counter(0)
     clock.tick()
     img = sensor.snapshot()
 
@@ -114,7 +153,7 @@ while (True):
         gc.collect()
         print("free mem")
         print(gc.mem_free())
-        print("snapshot directory")
+        #print("snapshot directory")
 
         #Take snap and find similarity
         imgSnapSimilarity = StoreSnapshot(img)
@@ -131,12 +170,17 @@ while (True):
             green_led.on()
             print("Face Recognized")
             distance = 0
+            faceRecognized = True
         else:
             blue_led.off()
             green_led.off()
             red_led.on()
             print("Face not Recognized")
             captureNewFace()
+            faceRecognized = False
+
+        SearchSDAlgorithm()
+
     elif(any(rectobj)):
         #rectobj = img.find_rects(threshold = 10000)
         for r in rectobj:
@@ -151,4 +195,5 @@ while (True):
         red_led.on()
         blue_led.on()
 
-    print(clock.fps())
+    #print(clock.fps())
+    print("Time to run: %d" % (micros.counter()/1000))
