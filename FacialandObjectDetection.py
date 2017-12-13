@@ -42,9 +42,29 @@ searchIndex = 1
 tempSearchIndex = 1
 searchIndexArray = []
 countRecognized = 0
+countRectangles = 0;
+
+gc.enable()
 
 #Make directory for tempSnapshot for comparison
-os.mkdir("snapshot")
+def CleanSDCard():
+    print("Cleaning SD Card")
+    if "snapshot" not in os.listdir():
+        os.mkdir("snapshot")
+    #else:
+    try:
+        for i in range(1,1000):
+            for j in range(0,9):
+                os.remove("%d/snapshot-%d.pgm" % (i,j))
+            os.rmdir("%d" % (i))
+    except OSError as err:
+        pass
+    try:
+        os.remove("snapshot/snap.pgm")
+    except OSError as err:
+        pass
+
+
 
 #first function called in program to check if sd card is empty
 def SDCardEmpty():
@@ -85,11 +105,10 @@ def FindFaceMatch(imgSnapSimilarity):
 
             savedImg = None
             img = None
-        gc.collect()
         if(distance < 350000):
             #print(distance)
             tempSearchIndex = j
-            print("File %d Distance: " %(j))
+            print("Face Found in Folder: %d " %(j))
             return distance
         #print(distance)
     #print("File %d Distance: " %(j))
@@ -131,8 +150,9 @@ def SearchSDAlgorithm():
 
 micros = pyb.Timer(2, prescaler=83, period=0x3fffffff)
 
-
+CleanSDCard()
 #Main function for detection of faces and objects
+#os.mkdir("snapshot")
 while (True):
     micros.counter(0)
     clock.tick()
@@ -150,9 +170,9 @@ while (True):
             SDCardEmpty()
             firstRunForFace = 1
         #Run garbage collector before running through all face rec functions
-        gc.collect()
-        print("free mem")
-        print(gc.mem_free())
+        #gc.collect()
+        #print("free mem")
+        #print(gc.mem_free())
         #print("snapshot directory")
 
         #Take snap and find similarity
@@ -168,7 +188,7 @@ while (True):
             blue_led.off()
             red_led.off()
             green_led.on()
-            print("Face Recognized")
+            #print("Face Recognized")
             distance = 0
             faceRecognized = True
         else:
@@ -189,11 +209,15 @@ while (True):
             green_led.off()
             red_led.on()
             blue_led.on()
-            print("Detecting Rectangle Object")
+            countRectangles +=1
+
+        print("Detecting %d Objects" % (countRectangles))
+        countRectangles = 0
     else:
         green_led.on()
         red_led.on()
         blue_led.on()
 
-    #print(clock.fps())
+    print(clock.fps())
     print("Time to run: %d" % (micros.counter()/1000))
+   # gc.collect()
